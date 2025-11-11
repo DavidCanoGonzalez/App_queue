@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Video Queue Saver",
+  "version": "0.1.1",
+  "description": "Guarda automáticamente enlaces de vídeos mientras navegas o con un clic – deduplicado, cola y exportación.",
+  "permissions": ["tabs", "storage", "downloads", "webNavigation"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Video Queue Saver" },
+  "commands": {
+    "save_video_tabs": {
+      "description": "Guardar todas las pestañas de vídeo",
+      "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" }
+    },
+    "toggle_auto_save": {
+      "description": "Alternar auto-guardado de vídeos",
+      "suggested_key": { "default": "Ctrl+Shift+V", "mac": "Command+Shift+V" }
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

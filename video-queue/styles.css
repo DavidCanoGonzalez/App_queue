@@ -1,0 +1,24 @@
+* { box-sizing: border-box; }
+body { font: 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 10px; width: 380px; color: #e5e7eb; background: #0b1220; }
+header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+h1 { font-size: 16px; margin: 0; flex: 1; color: #ffffff; }
+.small { font-size: 12px; }
+.mute { color: #94a3b8; }
+.actions { display: flex; gap: 8px; margin-bottom: 10px; }
+button { padding: 8px 10px; border-radius: 10px; border: 1px solid #334155; background: #111827; color: #e5e7eb; cursor: pointer; }
+button:hover { background: #0f172a; }
+#list { display: flex; flex-direction: column; gap: 8px; }
+.item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid #1f2937; border-radius: 12px; background: #0f172a; }
+.item .meta { display: flex; gap: 10px; align-items: center; flex: 1; }
+.item .favicon { width: 18px; height: 18px; border-radius: 4px; background: #1f2937; }
+.item .title { display: inline-block; color: #e5e7eb; text-decoration: none; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .sub { color: #94a3b8; }
+.ops { display: flex; gap: 8px; }
+.ops .watchBtn { }
+/* Toggle switch */
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { display: none; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #334155; transition: .2s; border-radius: 999px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; transition: .2s; border-radius: 50%; }
+input:checked + .slider { background: #0ea5e9; }
+input:checked + .slider:before { transform: translateX(20px); }
