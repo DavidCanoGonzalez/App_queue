@@ -1,46 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video Queue Saver</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <header>
-    <h1>Video Queue Saver</h1>
-    <label class="switch">
-      <input id="autoToggle" type="checkbox" />
-      <span class="slider"></span>
-    </label>
-    <span class="small">Auto-guardar</span>
-  </header>
-
-  <div class="actions">
-    <button id="saveAll">Guardar pestañas de vídeo</button>
-    <button id="exportCsv">Exportar CSV</button>
-    <button id="clearAll">Borrar todo</button>
-  </div>
-
-  <section id="stats" class="small mute"></section>
-
-  <section id="list"></section>
-
-  <template id="itemTpl">
-    <article class="item">
-      <div class="meta">
-        <img class="favicon" />
+  <head>
+    <meta charset="utf-8" />
+    <title>Video Queue Saver</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <header class="header">
         <div>
-          <a class="title" target="_blank" rel="noreferrer noopener"></a>
-          <div class="sub small"></div>
+          <h1>Video Queue Saver</h1>
         </div>
-      </div>
-      <div class="ops">
-        <button class="delBtn">Eliminar</button>
-      </div>
-    </article>
-  </template>
+        <label class="toggle">
+          <input type="checkbox" id="autoSaveToggle" />
+          <span class="slider"></span>
+          <span class="label">Auto-guardar</span>
+        </label>
+      </header>
 
-  <script src="popup.js" type="module"></script>
-</body>
+      <section class="controls">
+        <button id="saveTabs" class="primary">Guardar pestañas de video</button>
+        <button id="exportCsv">Exportar CSV</button>
+        <button id="clearList" class="danger">Borrar todo</button>
+      </section>
+
+      <section class="status">
+        <span id="savedCount">0 enlaces guardados</span>
+      </section>
+
+      <section class="list">
+        <ul id="linksList"></ul>
+      </section>
+    </main>
+
+    <script src="popup.js" defer></script>
+  </body>
 </html>
