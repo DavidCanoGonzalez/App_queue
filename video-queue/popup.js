@@ -1,6 +1,4 @@
 const STORAGE_KEY = 'savedLinks';
-const AUTO_SAVE_KEY = 'autoSaveEnabled';
-
 function normalizeEntry(entry) {
   if (entry && typeof entry === 'object') {
     const url = typeof entry.url === 'string' ? entry.url : '';
@@ -22,25 +20,8 @@ const elements = {
   exportCsv: document.getElementById('exportCsv'),
   clearList: document.getElementById('clearList'),
   linksList: document.getElementById('linksList'),
-  savedCount: document.getElementById('savedCount'),
-  autoSaveToggle: document.getElementById('autoSaveToggle')
+  savedCount: document.getElementById('savedCount')
 };
-
-function sendMessage(message) {
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.runtime.sendMessage(message, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(response);
-        }
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
 
 function queryTabs(queryInfo) {
   return new Promise((resolve, reject) => {
@@ -85,23 +66,24 @@ function renderLinks(links) {
   elements.savedCount.textContent = `${normalized.length} enlace${normalized.length === 1 ? '' : 's'} guardado${normalized.length === 1 ? '' : 's'}`;
 }
 
-function getStored(keys) {
+function getLinks() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(keys, (items) => resolve(items));
+    chrome.storage.local.get([STORAGE_KEY], (items) => {
+      const stored = Array.isArray(items[STORAGE_KEY]) ? items[STORAGE_KEY] : [];
+      resolve(stored.map((entry) => normalizeEntry(entry)).filter(Boolean));
+    });
   });
 }
 
-function setStored(values) {
+function setLinks(links) {
   return new Promise((resolve) => {
-    chrome.storage.local.set(values, () => resolve());
+    chrome.storage.local.set({ [STORAGE_KEY]: links }, () => resolve());
   });
 }
 
 async function loadState() {
-  await sendMessage({ type: 'ensureDefaults' }).catch(() => {});
-  const data = await getStored([STORAGE_KEY, AUTO_SAVE_KEY]);
-  renderLinks(Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : []);
-  elements.autoSaveToggle.checked = Boolean(data[AUTO_SAVE_KEY]);
+  const links = await getLinks();
+  renderLinks(links);
 }
 
 async function saveCurrentTabs() {
@@ -115,10 +97,7 @@ async function saveCurrentTabs() {
     return;
   }
 
-  const existing = await getStored([STORAGE_KEY]);
-  const stored = Array.isArray(existing[STORAGE_KEY])
-    ? existing[STORAGE_KEY].map((entry) => normalizeEntry(entry)).filter(Boolean)
-    : [];
+  const stored = await getLinks();
   const unique = new Set(stored.map((entry) => entry.url));
   const additions = [];
 
@@ -134,15 +113,12 @@ async function saveCurrentTabs() {
   }
 
   const updated = [...stored, ...additions];
-  await setStored({ [STORAGE_KEY]: updated });
+  await setLinks(updated);
   renderLinks(updated);
 }
 
 async function exportCsv() {
-  const data = await getStored([STORAGE_KEY]);
-  const links = Array.isArray(data[STORAGE_KEY])
-    ? data[STORAGE_KEY].map((entry) => normalizeEntry(entry)).filter(Boolean)
-    : [];
+  const links = await getLinks();
   if (!links.length) {
     return;
   }
@@ -162,20 +138,8 @@ async function exportCsv() {
 }
 
 async function clearList() {
-  await setStored({ [STORAGE_KEY]: [] });
+  await setLinks([]);
   renderLinks([]);
-}
-
-async function toggleAutoSave(event) {
-  const enabled = event.target.checked;
-  elements.autoSaveToggle.disabled = true;
-  try {
-    await sendMessage({ type: 'setAutoSave', enabled });
-  } catch (error) {
-    event.target.checked = !enabled;
-  } finally {
-    elements.autoSaveToggle.disabled = false;
-  }
 }
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -186,10 +150,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (changes[STORAGE_KEY]) {
     renderLinks(changes[STORAGE_KEY].newValue || []);
   }
-
-  if (changes[AUTO_SAVE_KEY]) {
-    elements.autoSaveToggle.checked = Boolean(changes[AUTO_SAVE_KEY].newValue);
-  }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -197,5 +157,4 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.saveTabs.addEventListener('click', saveCurrentTabs);
   elements.exportCsv.addEventListener('click', exportCsv);
   elements.clearList.addEventListener('click', clearList);
-  elements.autoSaveToggle.addEventListener('change', toggleAutoSave);
 });
