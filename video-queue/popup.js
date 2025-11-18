@@ -1,30 +1,29 @@
+/* global chrome */
+
 const STORAGE_KEY = 'savedLinks';
-const AUTO_SAVE_KEY = 'autoSaveEnabled';
+function normalizeEntry(entry) {
+  if (entry && typeof entry === 'object') {
+    const url = typeof entry.url === 'string' ? entry.url : '';
+    const title = typeof entry.title === 'string' && entry.title.trim() ? entry.title : url;
+    if (url) {
+      return { url, title: title || url };
+    }
+  }
+
+  if (typeof entry === 'string' && entry.trim()) {
+    return { url: entry, title: entry };
+  }
+
+  return null;
+}
 
 const elements = {
   saveTabs: document.getElementById('saveTabs'),
   exportCsv: document.getElementById('exportCsv'),
   clearList: document.getElementById('clearList'),
   linksList: document.getElementById('linksList'),
-  savedCount: document.getElementById('savedCount'),
-  autoSaveToggle: document.getElementById('autoSaveToggle')
+  savedCount: document.getElementById('savedCount')
 };
-
-function sendMessage(message) {
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.runtime.sendMessage(message, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(response);
-        }
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
 
 function queryTabs(queryInfo) {
   return new Promise((resolve, reject) => {
@@ -44,17 +43,21 @@ function queryTabs(queryInfo) {
 
 function renderLinks(links) {
   elements.linksList.innerHTML = '';
-  if (!Array.isArray(links) || !links.length) {
+  const normalized = Array.isArray(links)
+    ? links.map((entry) => normalizeEntry(entry)).filter(Boolean)
+    : [];
+
+  if (!normalized.length) {
     elements.savedCount.textContent = '0 enlaces guardados';
     return;
   }
 
   const fragment = document.createDocumentFragment();
-  links.forEach((link, index) => {
+  normalized.forEach((entry) => {
     const item = document.createElement('li');
     const anchor = document.createElement('a');
-    anchor.href = link;
-    anchor.textContent = `${index + 1}. ${link}`;
+    anchor.href = entry.url;
+    anchor.textContent = entry.title || entry.url;
     anchor.target = '_blank';
     anchor.rel = 'noopener noreferrer';
     item.appendChild(anchor);
@@ -62,44 +65,48 @@ function renderLinks(links) {
   });
 
   elements.linksList.appendChild(fragment);
-  elements.savedCount.textContent = `${links.length} enlace${links.length === 1 ? '' : 's'} guardado${links.length === 1 ? '' : 's'}`;
+  elements.savedCount.textContent = `${normalized.length} enlace${normalized.length === 1 ? '' : 's'} guardado${normalized.length === 1 ? '' : 's'}`;
 }
 
-function getStored(keys) {
+function getLinks() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(keys, (items) => resolve(items));
+    chrome.storage.local.get([STORAGE_KEY], (items) => {
+      const stored = Array.isArray(items[STORAGE_KEY]) ? items[STORAGE_KEY] : [];
+      resolve(stored.map((entry) => normalizeEntry(entry)).filter(Boolean));
+    });
   });
 }
 
-function setStored(values) {
+function setLinks(links) {
   return new Promise((resolve) => {
-    chrome.storage.local.set(values, () => resolve());
+    chrome.storage.local.set({ [STORAGE_KEY]: links }, () => resolve());
   });
 }
 
 async function loadState() {
-  await sendMessage({ type: 'ensureDefaults' }).catch(() => {});
-  const data = await getStored([STORAGE_KEY, AUTO_SAVE_KEY]);
-  renderLinks(Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : []);
-  elements.autoSaveToggle.checked = Boolean(data[AUTO_SAVE_KEY]);
+  const links = await getLinks();
+  renderLinks(links);
 }
 
 async function saveCurrentTabs() {
   const tabs = await queryTabs({ currentWindow: true });
-  const urls = tabs.map((tab) => tab.url).filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url));
-  if (!urls.length) {
+  const entries = tabs
+    .map((tab) => ({ url: tab.url, title: tab.title || tab.url }))
+    .map((entry) => normalizeEntry(entry))
+    .filter((entry) => entry && /^https?:\/\//i.test(entry.url));
+
+  if (!entries.length) {
     return;
   }
 
-  const existing = await getStored([STORAGE_KEY]);
-  const stored = Array.isArray(existing[STORAGE_KEY]) ? existing[STORAGE_KEY] : [];
-  const unique = new Set(stored);
+  const stored = await getLinks();
+  const unique = new Set(stored.map((entry) => entry.url));
   const additions = [];
 
-  urls.forEach((url) => {
-    if (!unique.has(url)) {
-      unique.add(url);
-      additions.push(url);
+  entries.forEach((entry) => {
+    if (!unique.has(entry.url)) {
+      unique.add(entry.url);
+      additions.push(entry);
     }
   });
 
@@ -108,18 +115,17 @@ async function saveCurrentTabs() {
   }
 
   const updated = [...stored, ...additions];
-  await setStored({ [STORAGE_KEY]: updated });
+  await setLinks(updated);
   renderLinks(updated);
 }
 
 async function exportCsv() {
-  const data = await getStored([STORAGE_KEY]);
-  const links = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+  const links = await getLinks();
   if (!links.length) {
     return;
   }
 
-  const rows = [['Indice', 'URL'], ...links.map((link, index) => [index + 1, link])];
+  const rows = [['Titulo', 'URL'], ...links.map((link) => [link.title || link.url, link.url])];
   const csvContent = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -134,20 +140,8 @@ async function exportCsv() {
 }
 
 async function clearList() {
-  await setStored({ [STORAGE_KEY]: [] });
+  await setLinks([]);
   renderLinks([]);
-}
-
-async function toggleAutoSave(event) {
-  const enabled = event.target.checked;
-  elements.autoSaveToggle.disabled = true;
-  try {
-    await sendMessage({ type: 'setAutoSave', enabled });
-  } catch (error) {
-    event.target.checked = !enabled;
-  } finally {
-    elements.autoSaveToggle.disabled = false;
-  }
 }
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -158,10 +152,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (changes[STORAGE_KEY]) {
     renderLinks(changes[STORAGE_KEY].newValue || []);
   }
-
-  if (changes[AUTO_SAVE_KEY]) {
-    elements.autoSaveToggle.checked = Boolean(changes[AUTO_SAVE_KEY].newValue);
-  }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -169,5 +159,4 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.saveTabs.addEventListener('click', saveCurrentTabs);
   elements.exportCsv.addEventListener('click', exportCsv);
   elements.clearList.addEventListener('click', clearList);
-  elements.autoSaveToggle.addEventListener('change', toggleAutoSave);
 });
