@@ -1,3 +1,5 @@
+/* global chrome */
+
 const STORAGE_KEY = 'savedLinks';
 
 function normalizeEntry(entry) {
@@ -30,3 +32,8 @@ function ensureDefaults() {
 chrome.runtime.onInstalled.addListener(() => {
   ensureDefaults();
 });
+
+// Ejecutamos la normalización también cuando el service worker se inicie de
+// nuevo (por ejemplo, al recargar la extensión en modo desarrollador) para que
+// los datos viejos se actualicen sin necesidad de reinstalarla.
+ensureDefaults();

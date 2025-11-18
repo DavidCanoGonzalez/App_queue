@@ -1,3 +1,5 @@
+/* global chrome */
+
 const STORAGE_KEY = 'savedLinks';
 function normalizeEntry(entry) {
   if (entry && typeof entry === 'object') {
@@ -51,7 +53,7 @@ function renderLinks(links) {
   }
 
   const fragment = document.createDocumentFragment();
-  normalized.forEach((entry, index) => {
+  normalized.forEach((entry) => {
     const item = document.createElement('li');
     const anchor = document.createElement('a');
     anchor.href = entry.url;
